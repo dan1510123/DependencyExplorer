@@ -40,21 +40,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
 async function testGetReference() {
 	
-	var folder = vscode.workspace.workspaceFolders[0]
-	var docs = await vscode.workspace.fs.readDirectory(folder.uri)
+	const folder = vscode.workspace.workspaceFolders[0];
+	const docs = await vscode.workspace.fs.readDirectory(folder.uri);
 	
-	let uri = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
-	let textDocument = await vscode.workspace.openTextDocument(uri)
-	console.log(textDocument.getText())
-	await new Promise(resolve => setTimeout(resolve, 1000))
-	let symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri)
+	const uri = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts");
+	const textDocument = await vscode.workspace.openTextDocument(uri);
+	console.log(textDocument.getText());
+	await new Promise(resolve => setTimeout(resolve, 1000));
+	const symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri);
 
-	var locations = []
+	const locations = [];
 	symbols.forEach(element => {
 		getReferences(element, locations, uri);
 	});
 
-	console.log(symbols)
+	console.log(symbols);
 
 	// docs.forEach(element => {
 	// 	if(element[1] == 1) {
@@ -65,7 +65,7 @@ async function testGetReference() {
 }
 
 async function getReferences(symbol: DocumentSymbol, locations: Location[], uri: Uri) {
-	let position = symbol.range.start
-	let newLocations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, position)
-	console.log(newLocations)
+	const position = symbol.range.start;
+	const newLocations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, position);
+	console.log(newLocations);
 }
