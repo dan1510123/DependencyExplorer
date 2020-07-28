@@ -7,8 +7,12 @@ import { JsonOutlineProvider } from './jsonOutline';
 import { FtpExplorer } from './ftpExplorer';
 import { FileExplorer } from './fileExplorer';
 import { TestView } from './testView';
+import { DocumentSymbol } from 'vscode';
+import { Location } from 'vscode';
+import { Uri } from 'vscode';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+	testGetReference();
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new DepNodeProvider(vscode.workspace.rootPath);
@@ -32,4 +36,36 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Test View
 	new TestView(context);
+}
+
+async function testGetReference() {
+	
+	var folder = vscode.workspace.workspaceFolders[0]
+	var docs = await vscode.workspace.fs.readDirectory(folder.uri)
+	
+	let uri = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
+	let textDocument = await vscode.workspace.openTextDocument(uri)
+	console.log(textDocument.getText())
+	await new Promise(resolve => setTimeout(resolve, 1000))
+	let symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri)
+
+	var locations = []
+	symbols.forEach(element => {
+		getReferences(element, locations, uri);
+	});
+
+	console.log(symbols)
+
+	// docs.forEach(element => {
+	// 	if(element[1] == 1) {
+
+	// 	}
+	// });
+
+}
+
+async function getReferences(symbol: DocumentSymbol, locations: Location[], uri: Uri) {
+	let position = symbol.range.start
+	let newLocations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, position)
+	console.log(newLocations)
 }
