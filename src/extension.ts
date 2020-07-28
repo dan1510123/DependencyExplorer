@@ -9,10 +9,16 @@ import { FileExplorer } from './fileExplorer';
 import { TestView } from './testView';
 import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
+import { Position } from 'vscode';
 import { Uri } from 'vscode';
 
+let referenceMap = new Map<String, Set<String>>();
+
 export async function activate(context: vscode.ExtensionContext) {
-	testGetReference();
+	var folder = vscode.workspace.workspaceFolders[0]
+	let uri = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
+	let uris = [uri]
+	populateHashMap(uris);
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new DepNodeProvider(vscode.workspace.rootPath);
@@ -38,34 +44,39 @@ export async function activate(context: vscode.ExtensionContext) {
 	new TestView(context);
 }
 
-async function testGetReference() {
+async function populateHashMap(uris: Uri[]) {
+	console.log("Pausing first");
+	await new Promise(resolve => setTimeout(resolve, 1000));
+	console.log("Starting to get symbols and references")
+
+	for(var i = 0; i < uris.length; i++) {
+		let uri = uris[i]
+		let symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri)
+		
+		for(var j = 0; j < symbols.length; j++) {
+			const symbol = symbols[j]
+			const locations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, symbol.range.start)
+			getReferences(locations, uri);
+		}
+	}
+
+	console.log("Printing referenceMap:")
 	
-	var folder = vscode.workspace.workspaceFolders[0]
-	var docs = await vscode.workspace.fs.readDirectory(folder.uri)
-	
-	let uri = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
-	let textDocument = await vscode.workspace.openTextDocument(uri)
-	console.log(textDocument.getText())
-	await new Promise(resolve => setTimeout(resolve, 1000))
-	let symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri)
-
-	var locations = []
-	symbols.forEach(element => {
-		getReferences(element, locations, uri);
-	});
-
-	console.log(symbols)
-
-	// docs.forEach(element => {
-	// 	if(element[1] == 1) {
-
-	// 	}
-	// });
-
+	for (let entry of referenceMap.entries()) {
+		console.log("Key:", entry[0]);
+		entry[1].forEach(element => {
+			console.log(element)
+		});
+	}
 }
 
-async function getReferences(symbol: DocumentSymbol, locations: Location[], uri: Uri) {
-	let position = symbol.range.start
-	let newLocations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, position)
-	console.log(newLocations)
+async function getReferences(locations: Location[], uri: Uri) {
+	locations.forEach(location => {
+		let original = uri.path
+		let reference = location.uri.path;
+		if(!referenceMap.has(original) && original != reference) {
+			referenceMap.set(original, new Set<String>());
+		}
+		referenceMap.get(original).add(reference)
+	});
 }
