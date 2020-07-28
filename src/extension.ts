@@ -12,7 +12,10 @@ import { Location } from 'vscode';
 import { Uri } from 'vscode';
 
 export async function activate(context: vscode.ExtensionContext) {
-	testGetReference();
+	//testGetReference();
+	let testMap = createTestRefMap();
+	let testDepMap = createDependencyMap(testMap);
+	printMap(testDepMap);
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new DepNodeProvider(vscode.workspace.rootPath);
@@ -69,3 +72,44 @@ async function getReferences(symbol: DocumentSymbol, locations: Location[], uri:
 	const newLocations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, position);
 	console.log(newLocations);
 }
+
+// Test hashmap of doc names to their ref files
+function createTestRefMap(){
+	let referencesMap = new Map();
+	const folder = vscode.workspace.workspaceFolders[0];
+	referencesMap.set('file1', new Array<string>('a', 'b', 'c'))
+	referencesMap.set('file2', new Array<string>('a', 'c', 'd', 'e'))
+	referencesMap.set('file3', new Array<string>('b', 'd'))
+
+	return referencesMap;
+}
+
+// Creates a map of the dependencies in each file
+function createDependencyMap(symbolMap: Map<string, Array<string>>){
+	let dependencyMap = new Map<string, Array<string>>();
+	symbolMap.forEach((value: Array<string>, key: string) => {
+		// Iterate over array of refs
+		value.forEach(element => {
+			if(dependencyMap.has(element)){
+				dependencyMap.get(element).push(key);
+			}
+			else{
+				dependencyMap.set(element, new Array<string>(key));
+			}
+		});
+	});
+	return dependencyMap;
+}
+
+// Test print maps
+function printMap(map: Map<string, Array<string>>){
+	map.forEach(element => {
+		console.log(element)
+	});
+}
+
+// Create TreeView
+function createTreeView(){
+	
+}
+
