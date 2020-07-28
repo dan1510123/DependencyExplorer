@@ -48,17 +48,15 @@ async function readDirectory(rootUri: Uri, regex: RegExp) {
 	const entires = await vscode.workspace.fs.readDirectory(rootUri);
 
 	entires.forEach(async entry => {
-		if (regex.test(entry[0])) {
-			const uri = Uri.joinPath(rootUri, '\\' + entry[0]);
+		const uri = Uri.joinPath(rootUri, '\\' + entry[0]);
 
-			// the entry is a file
-			if (entry[1] == 1) {
-				URIS.push(uri);
-			}
-			// the entry is another directory
-			else {
-				await readDirectory(uri, regex);
-			}
+		// the entry is a file w/ specified extension
+		if (entry[1] == 1 && regex.test(entry[0])) {
+			URIS.push(uri);
+		}
+		// the entry is a directory
+		else {
+			await readDirectory(uri, regex);
 		}
 	});
 
