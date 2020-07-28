@@ -1,65 +1,51 @@
-# dependencyexplorer README
+# Views & View Containers
 
-This is the README for your extension "dependencyexplorer". After writing up a brief description, we recommend including the following sections.
+This sample demonstrates how to implement and contribute a tree view in VS Code. This includes:
 
-## Features
+- Contributing views and view containers.
+- Contributing actions in various location of the view.
+- Implementing the tree data provider for the view.
+- Creating and working with the view.
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+This sample provides following views
 
-For example if there is an image subfolder under your extension project workspace:
+- Node dependencies view
+- Ftp file explorer view
 
-\!\[feature X\]\(images/feature-x.png\)
+Following example shows Node dependencies view in Package Explorer View container.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+![Package Explorer](./resources/package-explorer.png)
 
-## Requirements
+## VS Code API
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+This sample uses following contribution points, activation events and APIs
 
-## Extension Settings
+### Contribution Points
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+- `views`
+- `viewsContainers`
+- `menu`
+  - `view/title`
+  - `view/item/context`
 
-For example:
+### Activation Events
 
-This extension contributes the following settings:
+- `onView:${viewId}`
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
+### APIs
 
-## Known Issues
+- `window.createTreeView`
+- `window.registerTreeDataProvider`
+- `TreeView`
+- `TreeDataProvider`
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Refer to [Usage](./USAGE.md) document for more details.
 
-## Release Notes
+## Running the Sample
 
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+- Open this example in VS Code Insiders
+- `npm install`
+- `npm run watch`
+- `F5` to start debugging
+- Node dependencies view is shown in Package explorer view container in Activity bar.
+- FTP file explorer view should be shown in Explorer
