@@ -10,9 +10,14 @@ import { TestView } from './testView';
 import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
 import { Uri } from 'vscode';
+import { read } from 'fs';
+
+
+
+const URIS: Uri[] = [];
 
 export async function activate(context: vscode.ExtensionContext) {
-	testGetReference();
+	getByExtension("ts");
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new DepNodeProvider(vscode.workspace.rootPath);
@@ -38,11 +43,42 @@ export async function activate(context: vscode.ExtensionContext) {
 	new TestView(context);
 }
 
+// recursion on files and directories
+async function readDirectory(rootUri: Uri, regex: RegExp) {
+	const entires = await vscode.workspace.fs.readDirectory(rootUri);
+
+	entires.forEach(async entry => {
+		if (regex.test(entry[0])) {
+			const uri = Uri.joinPath(rootUri, '\\' + entry[0]);
+
+			// the entry is a file
+			if (entry[1] == 1) {
+				URIS.push(uri);
+			}
+			// the entry is another directory
+			else {
+				await readDirectory(uri, regex);
+			}
+		}
+	});
+
+	console.log(URIS);
+}
+
+async function getByExtension(extension: string) {
+	const folder = vscode.workspace.workspaceFolders[0];
+	const regex = new RegExp('([a-zA-Z0-9s_\\.\\-():])+(.' + extension + ')$');
+
+	await readDirectory(folder.uri, regex);
+
+	console.log(URIS);
+}
+
 async function testGetReference() {
-	
+
 	const folder = vscode.workspace.workspaceFolders[0];
 	const docs = await vscode.workspace.fs.readDirectory(folder.uri);
-	
+
 	const uri = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts");
 	const textDocument = await vscode.workspace.openTextDocument(uri);
 	console.log(textDocument.getText());
@@ -69,3 +105,4 @@ async function getReferences(symbol: DocumentSymbol, locations: Location[], uri:
 	const newLocations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, position);
 	console.log(newLocations);
 }
+
