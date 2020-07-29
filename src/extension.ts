@@ -69,7 +69,7 @@ async function readDirectory(rootUri: Uri, regex: RegExp) {
 		else if(uri.fsPath.search('node_modules') == -1) {
 			await readDirectory(uri, regex);
 		}
-	}
+	})
 }
 
 async function getByExtension(extension: string) {
