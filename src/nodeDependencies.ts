@@ -1,102 +1,193 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import {TreeDataProvider, TreeItem} from 'vscode'
+import { Uri } from 'vscode';
+import { DocumentSymbol } from 'vscode';
+import { Location } from 'vscode';
 
-export class DepNodeProvider implements vscode.TreeDataProvider<Dependency> {
+export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
-	private _onDidChangeTreeData: vscode.EventEmitter<Dependency | undefined | void> = new vscode.EventEmitter<Dependency | undefined | void>();
-	readonly onDidChangeTreeData: vscode.Event<Dependency | undefined | void> = this._onDidChangeTreeData.event;
+	private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined | void> = new vscode.EventEmitter<TreeItem | undefined | void>();
+	readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | void> = this._onDidChangeTreeData.event;
+	private referenceMap = new Map<String, Set<String>>();
+	private dependencyMap = new Map<String, Set<String>>();
+	private URIS: Uri[] = [];
 
 	constructor(private workspaceRoot: string) {
+		this.getByExtension("ts").then((success) => {
+			this.populateHashMap(this.URIS).then((success) => {
+				this.createDependencyMap(this.referenceMap);
+			})
+		})
 	}
 
 	refresh(): void {
 		this._onDidChangeTreeData.fire();
 	}
 
-	getTreeItem(element: Dependency): vscode.TreeItem {
+	getTreeItem(element: TreeItem): vscode.TreeItem {
 		return element;
 	}
 
-	getChildren(element?: Dependency): Thenable<Dependency[]> {
+	getChildren(element?: TreeItem): Thenable<TreeItem[]> {
 		if (!this.workspaceRoot) {
-			vscode.window.showInformationMessage('No dependency in empty workspace');
+			vscode.window.showInformationMessage('No information for empty workspace');
 			return Promise.resolve([]);
 		}
 
 		if (element) {
-			return Promise.resolve(this.getDepsInPackageJson(path.join(this.workspaceRoot, 'node_modules', element.label, 'package.json')));
-		} else {
-			const packageJsonPath = path.join(this.workspaceRoot, 'package.json');
-			if (this.pathExists(packageJsonPath)) {
-				return Promise.resolve(this.getDepsInPackageJson(packageJsonPath));
-			} else {
-				vscode.window.showInformationMessage('Workspace has no package.json');
-				return Promise.resolve([]);
+			if(element instanceof FileItem) {
+				return Promise.resolve([new Reference(vscode.TreeItemCollapsibleState.Collapsed)]);
+			}
+			else if(element instanceof Dependency) {
+
+			}
+			else if(element instanceof Reference) {
+
+			}
+		}
+		else {
+			return Promise.resolve([new Dependency(vscode.TreeItemCollapsibleState.Collapsed)]);
+		}
+	}
+
+	// recursion on files and directories
+	async readDirectory(rootUri: Uri, regex: RegExp) {
+		const entires = await vscode.workspace.fs.readDirectory(rootUri);
+
+		entires.forEach(async entry => {
+			const uri = Uri.joinPath(rootUri, '/' + entry[0]);
+
+			// the entry is a file w/ specified extension
+			if (entry[1] == 1) {
+				if (regex.test(entry[0])) {
+					this.URIS.push(uri);
+				}
+			}
+			// the entry is a directory
+			else if (uri.fsPath.search('node_modules') == -1) {
+				await this.readDirectory(uri, regex);
+			}
+		});
+	}
+
+	async getByExtension(extension: string) {
+		const folder = vscode.workspace.workspaceFolders[0];
+		const regex = new RegExp('([a-zA-Z0-9s_\\.\\-():])+(.' + extension + ')$');
+
+		await this.readDirectory(folder.uri, regex);
+	}
+
+	async populateHashMap(uris: Uri[]) {
+		console.log("Pausing first");
+		await new Promise(resolve => setTimeout(resolve, 1000));
+		console.log("Starting to get symbols and references");
+
+		for (let i = 0; i < uris.length; i++) {
+			const uri = uris[i];
+			const symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri);
+
+			for (let j = 0; j < symbols.length; j++) {
+				const symbol = symbols[j];
+				const locations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, symbol.range.start);
+				this.getReferences(locations, uri);
 			}
 		}
 
+		console.log("Printing referenceMap:");
+
+		for (const entry of this.referenceMap.entries()) {
+			console.log("Key:", entry[0]);
+			entry[1].forEach(element => {
+				console.log(element);
+			});
+		}
+		console.log(this.URIS);
 	}
 
-	/**
-	 * Given the path to package.json, read all its dependencies and devDependencies.
-	 */
-	private getDepsInPackageJson(packageJsonPath: string): Dependency[] {
-		if (this.pathExists(packageJsonPath)) {
-			const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-
-			const toDep = (moduleName: string, version: string): Dependency => {
-				if (this.pathExists(path.join(this.workspaceRoot, 'node_modules', moduleName))) {
-					return new Dependency(moduleName, version, vscode.TreeItemCollapsibleState.Collapsed);
-				} else {
-					return new Dependency(moduleName, version, vscode.TreeItemCollapsibleState.None, {
-						command: 'extension.openPackageOnNpm',
-						title: '',
-						arguments: [moduleName]
-					});
-				}
-			};
-
-			const deps = packageJson.dependencies
-				? Object.keys(packageJson.dependencies).map(dep => toDep(dep, packageJson.dependencies[dep]))
-				: [];
-			const devDeps = packageJson.devDependencies
-				? Object.keys(packageJson.devDependencies).map(dep => toDep(dep, packageJson.devDependencies[dep]))
-				: [];
-			return deps.concat(devDeps);
-		} else {
-			return [];
-		}
+	getReferences(locations: Location[], uri: Uri) {
+		locations.forEach(location => {
+			const original = uri.path.toLowerCase();
+			const reference = location.uri.path.toLowerCase();
+			if (!this.referenceMap.has(original)) {
+				this.referenceMap.set(original, new Set<string>());
+			}
+			if (original !== reference && reference.search('node_module') == -1) {
+				this.referenceMap.get(original).add(reference);
+			}
+		});
 	}
 
-	private pathExists(p: string): boolean {
-		try {
-			fs.accessSync(p);
-		} catch (err) {
-			return false;
+	// Creates a map of the dependencies in each file
+	createDependencyMap(referenceMap: Map<String, Set<String>>) {
+		for (let entry of referenceMap.entries()) {
+			if(entry[1].size != 0){
+				entry[1].forEach(element => {
+					if(this.dependencyMap.has(element)){
+						let referenceSet = this.dependencyMap.get(element);
+						referenceSet.add(entry[0]);
+					}
+					else{
+						let set = new Set<String>();
+						set.add(entry[0]);
+						this.dependencyMap.set(element, set);
+					}
+				});
+			}
 		}
-
-		return true;
+		for (let entry of this.dependencyMap.entries()) {
+			console.log("Key:", entry[0]);
+			entry[1].forEach(element => {
+				console.log("Value:")
+				console.log(element)
+			});
+		}
 	}
 }
 
-export class Dependency extends vscode.TreeItem {
+export class FileItem extends TreeItem {
 
 	constructor(
 		public readonly label: string,
-		private version: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-		public readonly command?: vscode.Command
 	) {
 		super(label, collapsibleState);
 	}
 
 	get tooltip(): string {
-		return `${this.label}-${this.version}`;
+		return `${this.label}`;
 	}
 
 	get description(): string {
-		return this.version;
+		return this.label;
+	}
+
+	iconPath = {
+		light: path.join(__filename, '..', '..', 'resources', 'light', 'document.svg'),
+		dark: path.join(__filename, '..', '..', 'resources', 'dark', 'document.svg')
+	};
+
+	contextValue = 'file';
+
+}
+
+export class Dependency extends TreeItem {
+	
+	
+
+	constructor(
+		public readonly collapsibleState: vscode.TreeItemCollapsibleState
+	) {
+		super("Dependencies", collapsibleState);
+	}
+
+	get tooltip(): string {
+		return `${this.label}`;
+	}
+
+	get description(): string {
+		return this.label;
 	}
 
 	iconPath = {
@@ -105,5 +196,31 @@ export class Dependency extends vscode.TreeItem {
 	};
 
 	contextValue = 'dependency';
+
+}
+
+export class Reference extends TreeItem {
+
+	constructor(
+		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+		public readonly command?: vscode.Command
+	) {
+		super("reference", collapsibleState);
+	}
+
+	get tooltip(): string {
+		return `${this.label}`;
+	}
+
+	get description(): string {
+		return this.label;
+	}
+
+	iconPath = {
+		light: path.join(__filename, '..', '..', 'resources', 'light', 'dependency.svg'),
+		dark: path.join(__filename, '..', '..', 'resources', 'dark', 'dependency.svg')
+	};
+
+	contextValue = 'reference';
 
 }
