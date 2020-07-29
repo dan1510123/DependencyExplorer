@@ -9,9 +9,9 @@ import { FileExplorer } from './fileExplorer';
 import { TestView } from './testView';
 import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
-import { Position } from 'vscode';
 import { Uri } from 'vscode';
 
+<<<<<<< HEAD
 const referenceMap = new Map<String, Set<String>>();
 const URIS: Uri[] = [];
 
@@ -20,16 +20,23 @@ export async function activate(context: vscode.ExtensionContext) {
 		populateHashMap(URIS).then((success) => {
 			createDependencyMap(referenceMap);
 		});
+=======
+const referenceMap = new Map<string, Set<string>>();
+const URIS: Uri[] = [];
+
+export async function activate(context: vscode.ExtensionContext) {
+	getByExtension("ts").then(() => {
+		populateHashMap(URIS);
+>>>>>>> 2f91c8211b622a512d43539a15ae0a065fbab44f
 	});
 	
 
-	var folder = vscode.workspace.workspaceFolders[0]
-	let uri1 = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
-	let uri2 = Uri.joinPath(folder.uri, "/src/fileExplorer.ts")
-	let uri3 = Uri.joinPath(folder.uri, "/src/ftpExplorer.ts")
-	let uri4 = Uri.joinPath(folder.uri, "/src/extension.ts")
-	let uri5 = Uri.joinPath(folder.uri, "/src/jsonOutline.ts")
-	let uris = [uri1, uri2, uri3, uri4, uri5]
+	const folder = vscode.workspace.workspaceFolders[0];
+	const uri1 = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts");
+	const uri2 = Uri.joinPath(folder.uri, "/src/fileExplorer.ts");
+	const uri3 = Uri.joinPath(folder.uri, "/src/ftpExplorer.ts");
+	const uri4 = Uri.joinPath(folder.uri, "/src/extension.ts");
+	const uri5 = Uri.joinPath(folder.uri, "/src/jsonOutline.ts");
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new DepNodeProvider(vscode.workspace.rootPath);
@@ -64,12 +71,12 @@ async function readDirectory(rootUri: Uri, regex: RegExp) {
 
 		// the entry is a file w/ specified extension
 		if (entry[1] == 1) {
-			if(regex.test(entry[0])) {
+			if (regex.test(entry[0])) {
 				URIS.push(uri);
 			}
 		}
 		// the entry is a directory
-		else if(uri.fsPath.search('node_modules') == -1) {
+		else if (uri.fsPath.search('node_modules') == -1) {
 			await readDirectory(uri, regex);
 		}
 	});
@@ -85,39 +92,39 @@ async function getByExtension(extension: string) {
 async function populateHashMap(uris: Uri[]) {
 	console.log("Pausing first");
 	await new Promise(resolve => setTimeout(resolve, 1000));
-	console.log("Starting to get symbols and references")
+	console.log("Starting to get symbols and references");
 
-	for(var i = 0; i < uris.length; i++) {
-		let uri = uris[i]
-		let symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri)
-		
-		for(var j = 0; j < symbols.length; j++) {
-			const symbol = symbols[j]
-			const locations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, symbol.range.start)
+	for (let i = 0; i < uris.length; i++) {
+		const uri = uris[i];
+		const symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri);
+
+		for (let j = 0; j < symbols.length; j++) {
+			const symbol = symbols[j];
+			const locations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, symbol.range.start);
 			getReferences(locations, uri);
 		}
 	}
 
-	console.log("Printing referenceMap:")
-	
-	for (let entry of referenceMap.entries()) {
+	console.log("Printing referenceMap:");
+
+	for (const entry of referenceMap.entries()) {
 		console.log("Key:", entry[0]);
 		entry[1].forEach(element => {
-			console.log(element)
+			console.log(element);
 		});
 	}
-	console.log(URIS)
+	console.log(URIS);
 }
 
 async function getReferences(locations: Location[], uri: Uri) {
 	locations.forEach(location => {
-		let original = uri.path.toLowerCase();
-		let reference = location.uri.path.toLowerCase();
-		if(!referenceMap.has(original)) {
-			referenceMap.set(original, new Set<String>());
+		const original = uri.path.toLowerCase();
+		const reference = location.uri.path.toLowerCase();
+		if (!referenceMap.has(original)) {
+			referenceMap.set(original, new Set<string>());
 		}
-		if(original !== reference && reference.search('node_module') == -1) {
-			referenceMap.get(original).add(reference)
+		if (original !== reference && reference.search('node_module') == -1) {
+			referenceMap.get(original).add(reference);
 		}
 	});
 }
