@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
 import {TreeDataProvider, TreeItem} from 'vscode'
 import { Uri } from 'vscode';
@@ -15,8 +14,8 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 	private URIS: Uri[] = [];
 
 	constructor(private workspaceRoot: string) {
-		this.getByExtension("ts").then((success) => {
-			this.populateHashMap(this.URIS).then((success) => {
+		this.getByExtension("ts").then(() => {
+			this.populateHashMap(this.URIS).then(() => {
 				this.createDependencyMap(this.referenceMap);
 			})
 		})

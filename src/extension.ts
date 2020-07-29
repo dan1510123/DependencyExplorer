@@ -3,22 +3,8 @@
 import * as vscode from 'vscode';
 
 import { TreeExplorerProvider, Dependency } from './nodeDependencies';
-import { JsonOutlineProvider } from './jsonOutline';
-import { FtpExplorer } from './ftpExplorer';
-import { FileExplorer } from './fileExplorer';
-import { TestView } from './testView';
-import { DocumentSymbol } from 'vscode';
-import { Location } from 'vscode';
-import { Uri } from 'vscode';
-import { read } from 'fs';
 
-
-
-const URIS: Uri[] = [];
-
-
-
-export async function activate(context: vscode.ExtensionContext) {
+export async function activate() {
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new TreeExplorerProvider(vscode.workspace.rootPath);
