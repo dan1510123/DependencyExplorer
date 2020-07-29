@@ -4,6 +4,7 @@ import { TreeDataProvider, TreeItem } from 'vscode'
 import { Uri } from 'vscode';
 import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
+import { fstat } from 'fs';
 
 export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
@@ -43,8 +44,8 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		if (element) {
 			if (element instanceof FileItem) {
 				return Promise.resolve([
-					new DependenciesItem(element.label, vscode.TreeItemCollapsibleState.Collapsed),
-					new ReferencesItem(element.label, vscode.TreeItemCollapsibleState.Collapsed)
+					new DependenciesItem(element.fullPath, vscode.TreeItemCollapsibleState.Collapsed),
+					new ReferencesItem(element.fullPath, vscode.TreeItemCollapsibleState.Collapsed)
 				]);
 			}
 			else if (element instanceof DependenciesItem) {
@@ -63,7 +64,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		var fileitems: FileItem[] = [];
 		if(this.dependencyMap.has(target)) {
 			this.dependencyMap.get(target).forEach(element => {
-				fileitems.push(new FileItem(element, vscode.TreeItemCollapsibleState.Collapsed));
+				fileitems.push(new FileItem(element, this.getFileNameFromPath(element), vscode.TreeItemCollapsibleState.Collapsed));
 			})
 		}
 		return fileitems;
@@ -73,7 +74,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		var fileitems: FileItem[] = [];
 		if(this.referenceMap.has(target)) {
 			this.referenceMap.get(target).forEach(element => {
-				fileitems.push(new FileItem(element, vscode.TreeItemCollapsibleState.Collapsed));
+				fileitems.push(new FileItem(element, this.getFileNameFromPath(element), vscode.TreeItemCollapsibleState.Collapsed));
 			})
 		}
 		return fileitems;
@@ -83,13 +84,18 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		if (this.doneCollectingInfo) {
 			var fileitems: FileItem[] = [];
 			for (let entry of this.referenceMap.entries()) {
-				fileitems.push(new FileItem(entry[0], vscode.TreeItemCollapsibleState.Collapsed))
+				fileitems.push(new FileItem(entry[0], this.getFileNameFromPath(entry[0]), vscode.TreeItemCollapsibleState.Collapsed))
 			}
 			return fileitems;
 		}
 		else {
 			return [new TreeItem("Please wait for the tree to load...", vscode.TreeItemCollapsibleState.None)]
 		}
+	}
+
+	getFileNameFromPath(path: string): string {
+		console.log(path.replace(/^.*[\\\/]/, ''))
+		return path.replace(/^.*[\\\/]/, '')
 	}
 
 	// recursion on files and directories
@@ -135,15 +141,15 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 			}
 		}
 
-		console.log("Printing referenceMap:");
+		// console.log("Printing referenceMap:");
 
-		for (const entry of this.referenceMap.entries()) {
-			console.log("Key:", entry[0]);
-			entry[1].forEach(element => {
-				console.log(element);
-			});
-		}
-		console.log(this.URIS);
+		// for (const entry of this.referenceMap.entries()) {
+		// 	console.log("Key:", entry[0]);
+		// 	entry[1].forEach(element => {
+		// 		console.log(element);
+		// 	});
+		// }
+		// console.log(this.URIS);
 	}
 
 	addReferencesFromLocations(locations: Location[], uri: Uri) {
@@ -176,19 +182,20 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 				});
 			}
 		}
-		for (let entry of this.dependencyMap.entries()) {
-			console.log("Key:", entry[0]);
-			entry[1].forEach(element => {
-				console.log("Value:")
-				console.log(element)
-			});
-		}
+		// for (let entry of this.dependencyMap.entries()) {
+		// 	console.log("Key:", entry[0]);
+		// 	entry[1].forEach(element => {
+		// 		console.log("Value:")
+		// 		console.log(element)
+		// 	});
+		// }
 	}
 }
 
 export class FileItem extends TreeItem {
 
 	constructor(
+		public readonly fullPath: string,
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
 	) {
@@ -196,11 +203,11 @@ export class FileItem extends TreeItem {
 	}
 
 	get tooltip(): string {
-		return `${this.label}`;
+		return `${this.fullPath}`;
 	}
 
 	get description(): string {
-		return this.label;
+		return this.fullPath;
 	}
 
 	iconPath = {
