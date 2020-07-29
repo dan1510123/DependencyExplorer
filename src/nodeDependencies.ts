@@ -10,8 +10,8 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
 	private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined | void> = new vscode.EventEmitter<TreeItem | undefined | void>();
 	readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | void> = this._onDidChangeTreeData.event;
-	private referenceMap = new Map<String, Set<String>>();
-	private dependencyMap = new Map<String, Set<String>>();
+	private referenceMap = new Map<string, Set<string>>();
+	private dependencyMap = new Map<string, Set<string>>();
 	private URIS: Uri[] = [];
 
 	constructor(private workspaceRoot: string) {
@@ -38,18 +38,26 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
 		if (element) {
 			if(element instanceof FileItem) {
-				return Promise.resolve([new Reference(vscode.TreeItemCollapsibleState.Collapsed)]);
+				return Promise.resolve([]);
 			}
-			else if(element instanceof Dependency) {
+			else if(element instanceof DependenciesItem) {
 
 			}
-			else if(element instanceof Reference) {
+			else if(element instanceof ReferencesItem) {
 
 			}
 		}
 		else {
-			return Promise.resolve([new Dependency(vscode.TreeItemCollapsibleState.Collapsed)]);
+			return Promise.resolve(this.getTopLevelFiles());
 		}
+	}
+
+	getTopLevelFiles(): FileItem[] {
+		var fileitems: FileItem[] = [];
+		for (let entry of this.referenceMap.entries()) {
+			fileitems.push(new FileItem(entry[0], vscode.TreeItemCollapsibleState.Collapsed))
+		}
+		return fileitems;
 	}
 
 	// recursion on files and directories
@@ -120,7 +128,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 	}
 
 	// Creates a map of the dependencies in each file
-	createDependencyMap(referenceMap: Map<String, Set<String>>) {
+	createDependencyMap(referenceMap: Map<string, Set<string>>) {
 		for (let entry of referenceMap.entries()) {
 			if(entry[1].size != 0){
 				entry[1].forEach(element => {
@@ -129,7 +137,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 						referenceSet.add(entry[0]);
 					}
 					else{
-						let set = new Set<String>();
+						let set = new Set<string>();
 						set.add(entry[0]);
 						this.dependencyMap.set(element, set);
 					}
@@ -172,14 +180,15 @@ export class FileItem extends TreeItem {
 
 }
 
-export class Dependency extends TreeItem {
-	
-	
+export class DependenciesItem extends TreeItem {
+	public targetFile: string;
 
 	constructor(
+		targetFile: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState
 	) {
 		super("Dependencies", collapsibleState);
+		this.targetFile = targetFile;
 	}
 
 	get tooltip(): string {
@@ -199,13 +208,15 @@ export class Dependency extends TreeItem {
 
 }
 
-export class Reference extends TreeItem {
+export class ReferencesItem extends TreeItem {
+	public targetFile: string;
 
 	constructor(
-		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-		public readonly command?: vscode.Command
+		targetFile: string,
+		public readonly collapsibleState: vscode.TreeItemCollapsibleState
 	) {
-		super("reference", collapsibleState);
+		super("References", collapsibleState);
+		this.targetFile = targetFile;
 	}
 
 	get tooltip(): string {
