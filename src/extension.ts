@@ -69,8 +69,7 @@ async function readDirectory(rootUri: Uri, regex: RegExp) {
 		else if(uri.fsPath.search('node_modules') == -1) {
 			await readDirectory(uri, regex);
 		}
-	});
-}
+
 
 async function getByExtension(extension: string) {
 	const folder = vscode.workspace.workspaceFolders[0];
@@ -105,7 +104,6 @@ async function populateHashMap(uris: Uri[]) {
 	}
 	console.log(URIS)
 }
-
 async function getReferences(locations: Location[], uri: Uri) {
 	locations.forEach(location => {
 		let original = uri.path.toLowerCase();
