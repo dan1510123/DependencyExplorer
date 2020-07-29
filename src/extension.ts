@@ -12,13 +12,16 @@ import { Location } from 'vscode';
 import { Position } from 'vscode';
 import { Uri } from 'vscode';
 
-let referenceMap = new Map<String, Set<String>>();
+const referenceMap = new Map<String, Set<String>>();
 const URIS: Uri[] = [];
 
 export async function activate(context: vscode.ExtensionContext) {
 	getByExtension("ts").then((success) => {
-		populateHashMap(URIS);
+		populateHashMap(URIS).then((success) => {
+			createDependencyMap(referenceMap);
+		});
 	});
+	
 
 	var folder = vscode.workspace.workspaceFolders[0]
 	let uri1 = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
@@ -69,7 +72,7 @@ async function readDirectory(rootUri: Uri, regex: RegExp) {
 		else if(uri.fsPath.search('node_modules') == -1) {
 			await readDirectory(uri, regex);
 		}
-	})
+	});
 }
 
 async function getByExtension(extension: string) {
@@ -117,4 +120,31 @@ async function getReferences(locations: Location[], uri: Uri) {
 			referenceMap.get(original).add(reference)
 		}
 	});
+}
+
+// Creates a map of the dependencies in each file
+function createDependencyMap(referenceMap: Map<String, Set<String>>) {
+	let dependencyMap = new Map<String, Set<String>>();
+    for (let entry of referenceMap.entries()) {
+		if(entry[1].size != 0){
+			entry[1].forEach(element => {
+				if(dependencyMap.has(element)){
+					let referenceSet = dependencyMap.get(element);
+					referenceSet.add(entry[0]);
+				}
+				else{
+					let set = new Set<String>();
+					set.add(entry[0]);
+					dependencyMap.set(element, set);
+				}
+			});
+		}
+	}
+	for (let entry of dependencyMap.entries()) {
+		console.log("Key:", entry[0]);
+		entry[1].forEach(element => {
+			console.log("Value:")
+			console.log(element)
+		});
+	}
 }
