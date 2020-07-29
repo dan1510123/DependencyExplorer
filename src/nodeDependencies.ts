@@ -42,18 +42,41 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
 		if (element) {
 			if (element instanceof FileItem) {
-				return Promise.resolve([]);
+				return Promise.resolve([
+					new DependenciesItem(element.label, vscode.TreeItemCollapsibleState.Collapsed),
+					new ReferencesItem(element.label, vscode.TreeItemCollapsibleState.Collapsed)
+				]);
 			}
 			else if (element instanceof DependenciesItem) {
-
+				return Promise.resolve(this.getDependencies(element.targetFile))
 			}
 			else if (element instanceof ReferencesItem) {
-
+				return Promise.resolve(this.getReferences(element.targetFile))
 			}
 		}
 		else {
 			return Promise.resolve(this.getTopLevelFiles());
 		}
+	}
+
+	getDependencies(target: string): TreeItem[] {
+		var fileitems: FileItem[] = [];
+		if(this.dependencyMap.has(target)) {
+			this.dependencyMap.get(target).forEach(element => {
+				fileitems.push(new FileItem(element, vscode.TreeItemCollapsibleState.Collapsed));
+			})
+		}
+		return fileitems;
+	}
+
+	getReferences(target: string): TreeItem[] {
+		var fileitems: FileItem[] = [];
+		if(this.referenceMap.has(target)) {
+			this.referenceMap.get(target).forEach(element => {
+				fileitems.push(new FileItem(element, vscode.TreeItemCollapsibleState.Collapsed));
+			})
+		}
+		return fileitems;
 	}
 
 	getTopLevelFiles(): TreeItem[] {
@@ -108,7 +131,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 			for (let j = 0; j < symbols.length; j++) {
 				const symbol = symbols[j];
 				const locations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, symbol.range.start);
-				this.getReferences(locations, uri);
+				this.addReferencesFromLocations(locations, uri);
 			}
 		}
 
@@ -123,10 +146,10 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		console.log(this.URIS);
 	}
 
-	getReferences(locations: Location[], uri: Uri) {
+	addReferencesFromLocations(locations: Location[], uri: Uri) {
 		locations.forEach(location => {
-			const original = uri.path.toLowerCase();
-			const reference = location.uri.path.toLowerCase();
+			const original = uri.fsPath
+			const reference = location.uri.fsPath
 			if (!this.referenceMap.has(original)) {
 				this.referenceMap.set(original, new Set<string>());
 			}
