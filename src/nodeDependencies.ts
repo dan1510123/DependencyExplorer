@@ -2,13 +2,24 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import {TreeDataProvider, TreeItem} from 'vscode'
+import { Uri } from 'vscode';
+import { DocumentSymbol } from 'vscode';
+import { Location } from 'vscode';
 
 export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
 	private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined | void> = new vscode.EventEmitter<TreeItem | undefined | void>();
 	readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | void> = this._onDidChangeTreeData.event;
+	private referenceMap = new Map<String, Set<String>>();
+	private dependencyMap = new Map<String, Set<String>>();
+	private URIS: Uri[] = [];
 
 	constructor(private workspaceRoot: string) {
+		this.getByExtension("ts").then((success) => {
+			this.populateHashMap(this.URIS).then((success) => {
+				this.createDependencyMap(this.referenceMap);
+			})
+		})
 	}
 
 	refresh(): void {
@@ -26,10 +37,111 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		}
 
 		if (element) {
-			return Promise.resolve([]);
+			if(element instanceof FileItem) {
+				return Promise.resolve([new Reference(vscode.TreeItemCollapsibleState.Collapsed)]);
+			}
+			else if(element instanceof Dependency) {
+
+			}
+			else if(element instanceof Reference) {
+
+			}
 		}
 		else {
 			return Promise.resolve([new Dependency(vscode.TreeItemCollapsibleState.Collapsed)]);
+		}
+	}
+
+	// recursion on files and directories
+	async readDirectory(rootUri: Uri, regex: RegExp) {
+		const entires = await vscode.workspace.fs.readDirectory(rootUri);
+
+		entires.forEach(async entry => {
+			const uri = Uri.joinPath(rootUri, '/' + entry[0]);
+
+			// the entry is a file w/ specified extension
+			if (entry[1] == 1) {
+				if (regex.test(entry[0])) {
+					this.URIS.push(uri);
+				}
+			}
+			// the entry is a directory
+			else if (uri.fsPath.search('node_modules') == -1) {
+				await this.readDirectory(uri, regex);
+			}
+		});
+	}
+
+	async getByExtension(extension: string) {
+		const folder = vscode.workspace.workspaceFolders[0];
+		const regex = new RegExp('([a-zA-Z0-9s_\\.\\-():])+(.' + extension + ')$');
+
+		await this.readDirectory(folder.uri, regex);
+	}
+
+	async populateHashMap(uris: Uri[]) {
+		console.log("Pausing first");
+		await new Promise(resolve => setTimeout(resolve, 1000));
+		console.log("Starting to get symbols and references");
+
+		for (let i = 0; i < uris.length; i++) {
+			const uri = uris[i];
+			const symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri);
+
+			for (let j = 0; j < symbols.length; j++) {
+				const symbol = symbols[j];
+				const locations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, symbol.range.start);
+				this.getReferences(locations, uri);
+			}
+		}
+
+		console.log("Printing referenceMap:");
+
+		for (const entry of this.referenceMap.entries()) {
+			console.log("Key:", entry[0]);
+			entry[1].forEach(element => {
+				console.log(element);
+			});
+		}
+		console.log(this.URIS);
+	}
+
+	getReferences(locations: Location[], uri: Uri) {
+		locations.forEach(location => {
+			const original = uri.path.toLowerCase();
+			const reference = location.uri.path.toLowerCase();
+			if (!this.referenceMap.has(original)) {
+				this.referenceMap.set(original, new Set<string>());
+			}
+			if (original !== reference && reference.search('node_module') == -1) {
+				this.referenceMap.get(original).add(reference);
+			}
+		});
+	}
+
+	// Creates a map of the dependencies in each file
+	createDependencyMap(referenceMap: Map<String, Set<String>>) {
+		for (let entry of referenceMap.entries()) {
+			if(entry[1].size != 0){
+				entry[1].forEach(element => {
+					if(this.dependencyMap.has(element)){
+						let referenceSet = this.dependencyMap.get(element);
+						referenceSet.add(entry[0]);
+					}
+					else{
+						let set = new Set<String>();
+						set.add(entry[0]);
+						this.dependencyMap.set(element, set);
+					}
+				});
+			}
+		}
+		for (let entry of this.dependencyMap.entries()) {
+			console.log("Key:", entry[0]);
+			entry[1].forEach(element => {
+				console.log("Value:")
+				console.log(element)
+			});
 		}
 	}
 }
