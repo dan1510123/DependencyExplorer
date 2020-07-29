@@ -10,11 +10,15 @@ import { TestView } from './testView';
 import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
 import { Uri } from 'vscode';
+import { read } from 'fs';
+
+
+
+const URIS: Uri[] = [];
 
 
 
 export async function activate(context: vscode.ExtensionContext) {
-
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new TreeExplorerProvider(vscode.workspace.rootPath);
@@ -25,4 +29,3 @@ export async function activate(context: vscode.ExtensionContext) {
 	vscode.commands.registerCommand('nodeDependencies.editEntry', (node: Dependency) => vscode.window.showInformationMessage(`Successfully called edit entry on ${node.label}.`));
 	vscode.commands.registerCommand('nodeDependencies.deleteEntry', (node: Dependency) => vscode.window.showInformationMessage(`Successfully called delete entry on ${node.label}.`));
 }
-
