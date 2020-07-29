@@ -11,7 +11,6 @@ import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
 import { Uri } from 'vscode';
 
-<<<<<<< HEAD
 const referenceMap = new Map<String, Set<String>>();
 const URIS: Uri[] = [];
 
@@ -20,14 +19,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		populateHashMap(URIS).then((success) => {
 			createDependencyMap(referenceMap);
 		});
-=======
-const referenceMap = new Map<string, Set<string>>();
-const URIS: Uri[] = [];
-
-export async function activate(context: vscode.ExtensionContext) {
-	getByExtension("ts").then(() => {
-		populateHashMap(URIS);
->>>>>>> 2f91c8211b622a512d43539a15ae0a065fbab44f
 	});
 	
 
