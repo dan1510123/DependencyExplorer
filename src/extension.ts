@@ -16,8 +16,12 @@ let referenceMap = new Map<String, Set<String>>();
 
 export async function activate(context: vscode.ExtensionContext) {
 	var folder = vscode.workspace.workspaceFolders[0]
-	let uri = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
-	let uris = [uri]
+	let uri1 = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
+	let uri2 = Uri.joinPath(folder.uri, "/src/fileExplorer.ts")
+	let uri3 = Uri.joinPath(folder.uri, "/src/ftpExplorer.ts")
+	let uri4 = Uri.joinPath(folder.uri, "/src/extension.ts")
+	let uri5 = Uri.joinPath(folder.uri, "/src/jsonOutline.ts")
+	let uris = [uri1, uri2, uri3, uri4, uri5]
 	populateHashMap(uris);
 
 	// Samples of `window.registerTreeDataProvider`
@@ -74,9 +78,11 @@ async function getReferences(locations: Location[], uri: Uri) {
 	locations.forEach(location => {
 		let original = uri.path
 		let reference = location.uri.path;
-		if(!referenceMap.has(original) && original != reference) {
+		if(!referenceMap.has(original)) {
 			referenceMap.set(original, new Set<String>());
 		}
-		referenceMap.get(original).add(reference)
+		if(original != reference) {
+			referenceMap.get(original).add(reference)
+		}
 	});
 }
