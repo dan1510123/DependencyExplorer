@@ -13,8 +13,13 @@ import { Position } from 'vscode';
 import { Uri } from 'vscode';
 
 let referenceMap = new Map<String, Set<String>>();
+const URIS: Uri[] = [];
 
 export async function activate(context: vscode.ExtensionContext) {
+	getByExtension("ts").then((success) => {
+		populateHashMap(URIS);
+	});
+
 	var folder = vscode.workspace.workspaceFolders[0]
 	let uri1 = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
 	let uri2 = Uri.joinPath(folder.uri, "/src/fileExplorer.ts")
@@ -22,7 +27,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	let uri4 = Uri.joinPath(folder.uri, "/src/extension.ts")
 	let uri5 = Uri.joinPath(folder.uri, "/src/jsonOutline.ts")
 	let uris = [uri1, uri2, uri3, uri4, uri5]
-	populateHashMap(uris);
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new DepNodeProvider(vscode.workspace.rootPath);
@@ -46,6 +50,33 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Test View
 	new TestView(context);
+}
+
+// recursion on files and directories
+async function readDirectory(rootUri: Uri, regex: RegExp) {
+	const entires = await vscode.workspace.fs.readDirectory(rootUri);
+
+	entires.forEach(async entry => {
+		const uri = Uri.joinPath(rootUri, '/' + entry[0]);
+
+		// the entry is a file w/ specified extension
+		if (entry[1] == 1) {
+			if(regex.test(entry[0])) {
+				URIS.push(uri);
+			}
+		}
+		// the entry is a directory
+		else if(uri.fsPath.search('node_modules') == -1) {
+			await readDirectory(uri, regex);
+		}
+	});
+}
+
+async function getByExtension(extension: string) {
+	const folder = vscode.workspace.workspaceFolders[0];
+	const regex = new RegExp('([a-zA-Z0-9s_\\.\\-():])+(.' + extension + ')$');
+
+	await readDirectory(folder.uri, regex);
 }
 
 async function populateHashMap(uris: Uri[]) {
@@ -72,16 +103,17 @@ async function populateHashMap(uris: Uri[]) {
 			console.log(element)
 		});
 	}
+	console.log(URIS)
 }
 
 async function getReferences(locations: Location[], uri: Uri) {
 	locations.forEach(location => {
-		let original = uri.path
-		let reference = location.uri.path;
+		let original = uri.path.toLowerCase();
+		let reference = location.uri.path.toLowerCase();
 		if(!referenceMap.has(original)) {
 			referenceMap.set(original, new Set<String>());
 		}
-		if(original != reference) {
+		if(original !== reference && reference.search('node_module') == -1) {
 			referenceMap.get(original).add(reference)
 		}
 	});
