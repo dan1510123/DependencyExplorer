@@ -9,10 +9,24 @@ import { FileExplorer } from './fileExplorer';
 import { TestView } from './testView';
 import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
+import { Position } from 'vscode';
 import { Uri } from 'vscode';
 
+let referenceMap = new Map<String, Set<String>>();
+const URIS: Uri[] = [];
+
 export async function activate(context: vscode.ExtensionContext) {
-	testGetReference();
+	getByExtension("ts").then((success) => {
+		populateHashMap(URIS);
+	});
+
+	var folder = vscode.workspace.workspaceFolders[0]
+	let uri1 = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts")
+	let uri2 = Uri.joinPath(folder.uri, "/src/fileExplorer.ts")
+	let uri3 = Uri.joinPath(folder.uri, "/src/ftpExplorer.ts")
+	let uri4 = Uri.joinPath(folder.uri, "/src/extension.ts")
+	let uri5 = Uri.joinPath(folder.uri, "/src/jsonOutline.ts")
+	let uris = [uri1, uri2, uri3, uri4, uri5]
 
 	// Samples of `window.registerTreeDataProvider`
 	const nodeDependenciesProvider = new DepNodeProvider(vscode.workspace.rootPath);
@@ -38,34 +52,67 @@ export async function activate(context: vscode.ExtensionContext) {
 	new TestView(context);
 }
 
-async function testGetReference() {
-	
+// recursion on files and directories
+async function readDirectory(rootUri: Uri, regex: RegExp) {
+	const entires = await vscode.workspace.fs.readDirectory(rootUri);
+
+	entires.forEach(async entry => {
+		const uri = Uri.joinPath(rootUri, '/' + entry[0]);
+
+		// the entry is a file w/ specified extension
+		if (entry[1] == 1) {
+			if(regex.test(entry[0])) {
+				URIS.push(uri);
+			}
+		}
+		// the entry is a directory
+		else if(uri.fsPath.search('node_modules') == -1) {
+			await readDirectory(uri, regex);
+		}
+
+
+async function getByExtension(extension: string) {
 	const folder = vscode.workspace.workspaceFolders[0];
-	const docs = await vscode.workspace.fs.readDirectory(folder.uri);
-	
-	const uri = Uri.joinPath(folder.uri, "/src/nodeDependencies.ts");
-	const textDocument = await vscode.workspace.openTextDocument(uri);
-	console.log(textDocument.getText());
-	await new Promise(resolve => setTimeout(resolve, 1000));
-	const symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri);
+	const regex = new RegExp('([a-zA-Z0-9s_\\.\\-():])+(.' + extension + ')$');
 
-	const locations = [];
-	symbols.forEach(element => {
-		getReferences(element, locations, uri);
-	});
-
-	console.log(symbols);
-
-	// docs.forEach(element => {
-	// 	if(element[1] == 1) {
-
-	// 	}
-	// });
-
+	await readDirectory(folder.uri, regex);
 }
 
-async function getReferences(symbol: DocumentSymbol, locations: Location[], uri: Uri) {
-	const position = symbol.range.start;
-	const newLocations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, position);
-	console.log(newLocations);
+async function populateHashMap(uris: Uri[]) {
+	console.log("Pausing first");
+	await new Promise(resolve => setTimeout(resolve, 1000));
+	console.log("Starting to get symbols and references")
+
+	for(var i = 0; i < uris.length; i++) {
+		let uri = uris[i]
+		let symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri)
+		
+		for(var j = 0; j < symbols.length; j++) {
+			const symbol = symbols[j]
+			const locations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, symbol.range.start)
+			getReferences(locations, uri);
+		}
+	}
+
+	console.log("Printing referenceMap:")
+	
+	for (let entry of referenceMap.entries()) {
+		console.log("Key:", entry[0]);
+		entry[1].forEach(element => {
+			console.log(element)
+		});
+	}
+	console.log(URIS)
+}
+async function getReferences(locations: Location[], uri: Uri) {
+	locations.forEach(location => {
+		let original = uri.path.toLowerCase();
+		let reference = location.uri.path.toLowerCase();
+		if(!referenceMap.has(original)) {
+			referenceMap.set(original, new Set<String>());
+		}
+		if(original !== reference && reference.search('node_module') == -1) {
+			referenceMap.get(original).add(reference)
+		}
+	});
 }
