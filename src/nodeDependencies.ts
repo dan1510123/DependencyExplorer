@@ -13,11 +13,16 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 	private referenceMap = new Map<string, Set<string>>();
 	private dependencyMap = new Map<string, Set<string>>();
 	private URIS: Uri[] = [];
+	private doneCollectingInfo: boolean = false;
 
 	constructor(private workspaceRoot: string) {
 		this.getByExtension("ts").then((success) => {
 			this.populateHashMap(this.URIS).then((success) => {
 				this.createDependencyMap(this.referenceMap);
+			})
+			.then((success) => {
+				this.doneCollectingInfo = true;
+				this.refresh();
 			})
 		})
 	}
@@ -52,12 +57,17 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		}
 	}
 
-	getTopLevelFiles(): FileItem[] {
-		var fileitems: FileItem[] = [];
-		for (let entry of this.referenceMap.entries()) {
-			fileitems.push(new FileItem(entry[0], vscode.TreeItemCollapsibleState.Collapsed))
+	getTopLevelFiles(): TreeItem[] {
+		if(this.doneCollectingInfo) {
+			var fileitems: FileItem[] = [];
+			for (let entry of this.referenceMap.entries()) {
+				fileitems.push(new FileItem(entry[0], vscode.TreeItemCollapsibleState.Collapsed))
+			}
+			return fileitems;
 		}
-		return fileitems;
+		else {
+			return [new TreeItem("Please wait for the tree to load...", vscode.TreeItemCollapsibleState.None)]
+		}
 	}
 
 	// recursion on files and directories
