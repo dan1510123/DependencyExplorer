@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
-import {TreeDataProvider, TreeItem} from 'vscode'
+import { TreeDataProvider, TreeItem } from 'vscode'
 import { Uri } from 'vscode';
 import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
@@ -16,14 +15,14 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 	private doneCollectingInfo: boolean = false;
 
 	constructor(private workspaceRoot: string) {
-		this.getByExtension("ts").then((success) => {
-			this.populateHashMap(this.URIS).then((success) => {
+		this.getByExtension("ts").then(() => {
+			this.populateHashMap(this.URIS).then(() => {
 				this.createDependencyMap(this.referenceMap);
 			})
-			.then((success) => {
-				this.doneCollectingInfo = true;
-				this.refresh();
-			})
+				.then(() => {
+					this.doneCollectingInfo = true;
+					this.refresh();
+				})
 		})
 	}
 
@@ -42,13 +41,13 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		}
 
 		if (element) {
-			if(element instanceof FileItem) {
+			if (element instanceof FileItem) {
 				return Promise.resolve([]);
 			}
-			else if(element instanceof DependenciesItem) {
+			else if (element instanceof DependenciesItem) {
 
 			}
-			else if(element instanceof ReferencesItem) {
+			else if (element instanceof ReferencesItem) {
 
 			}
 		}
@@ -58,7 +57,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 	}
 
 	getTopLevelFiles(): TreeItem[] {
-		if(this.doneCollectingInfo) {
+		if (this.doneCollectingInfo) {
 			var fileitems: FileItem[] = [];
 			for (let entry of this.referenceMap.entries()) {
 				fileitems.push(new FileItem(entry[0], vscode.TreeItemCollapsibleState.Collapsed))
@@ -140,13 +139,13 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 	// Creates a map of the dependencies in each file
 	createDependencyMap(referenceMap: Map<string, Set<string>>) {
 		for (let entry of referenceMap.entries()) {
-			if(entry[1].size != 0){
+			if (entry[1].size != 0) {
 				entry[1].forEach(element => {
-					if(this.dependencyMap.has(element)){
+					if (this.dependencyMap.has(element)) {
 						let referenceSet = this.dependencyMap.get(element);
 						referenceSet.add(entry[0]);
 					}
-					else{
+					else {
 						let set = new Set<string>();
 						set.add(entry[0]);
 						this.dependencyMap.set(element, set);
