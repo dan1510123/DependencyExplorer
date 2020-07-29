@@ -5,6 +5,7 @@ import { Uri } from 'vscode';
 import { DocumentSymbol } from 'vscode';
 import { Location } from 'vscode';
 import { fstat } from 'fs';
+import { Console } from 'console';
 
 export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
@@ -16,7 +17,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 	private doneCollectingInfo: boolean = false;
 
 	constructor(private workspaceRoot: string) {
-		this.getByExtension("ts").then(() => {
+		this.getByExtension("go").then(() => {
 			this.populateHashMap(this.URIS).then(() => {
 				this.createDependencyMap(this.referenceMap);
 			})
@@ -62,7 +63,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
 	getDependencies(target: string): TreeItem[] {
 		var fileitems: FileItem[] = [];
-		if(this.dependencyMap.has(target)) {
+		if (this.dependencyMap.has(target)) {
 			this.dependencyMap.get(target).forEach(element => {
 				fileitems.push(new FileItem(element, this.getFileNameFromPath(element), vscode.TreeItemCollapsibleState.Collapsed));
 			})
@@ -72,7 +73,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 
 	getReferences(target: string): TreeItem[] {
 		var fileitems: FileItem[] = [];
-		if(this.referenceMap.has(target)) {
+		if (this.referenceMap.has(target)) {
 			this.referenceMap.get(target).forEach(element => {
 				fileitems.push(new FileItem(element, this.getFileNameFromPath(element), vscode.TreeItemCollapsibleState.Collapsed));
 			})
@@ -112,7 +113,7 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 				}
 			}
 			// the entry is a directory
-			else if (uri.fsPath.search('node_modules') == -1) {
+			else if (uri.fsPath.search('node_modules') == -1 && uri.fsPath.search('.git') == -1) {
 				await this.readDirectory(uri, regex);
 			}
 		});
@@ -129,17 +130,19 @@ export class TreeExplorerProvider implements TreeDataProvider<TreeItem> {
 		console.log("Pausing first");
 		await new Promise(resolve => setTimeout(resolve, 1000));
 		console.log("Starting to get symbols and references");
+		console.log(this.URIS);
 
-		for (let i = 0; i < uris.length; i++) {
-			const uri = uris[i];
+		if (!this.URIS) {
+			await new Promise(resolve => setTimeout(resolve, 1000));
+		}
+
+		this.URIS.forEach(async uri => {
 			const symbols = await vscode.commands.executeCommand<DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', uri);
-
-			for (let j = 0; j < symbols.length; j++) {
-				const symbol = symbols[j];
+			symbols.forEach(async symbol => {
 				const locations = await vscode.commands.executeCommand<Location[]>('vscode.executeReferenceProvider', uri, symbol.range.start);
 				this.addReferencesFromLocations(locations, uri);
-			}
-		}
+			});
+		});
 
 		// console.log("Printing referenceMap:");
 
